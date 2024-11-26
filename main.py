@@ -3,23 +3,17 @@ from discord.ext import commands
 import requests
 import random
 import asyncio
-import json
+import os
 
-
-# Token Bot Discord
-
-
-# Replace with your actual bot token
-
-# Token API Gemini
-
+# ==========================
+# **SETUP**
+# ==========================
+# Mendapatkan Token dari Environment Variables
+DISCORD_TOKEN = os.getenv('Discord_Bot')  # Railway environment key
 GEMINI_API_KEY = "AIzaSyBE4u8hB7ib0Cmozd3d-jneWeFbz2L_gSM"
-  
-# Replace with your actual Gemini API key
-
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
 
-# Channel khusus tempat hanya bot yang bisa berbicara
+# Channel yang membatasi pembicaraan hanya bot
 MUTE_CHANNELS = ["🔊》Music", "Lofi-1"]
 
 # Inisialisasi intents
@@ -27,6 +21,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
 
 # ==========================
 # **FUNGSI: GEMINI API**
@@ -36,7 +31,7 @@ def get_gemini_response(prompt):
     Mengirim prompt ke API Gemini dan mendapatkan respons.
     """
     headers = {"Content-Type": "application/json"}
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    payload = {"prompt": {"text": prompt}}
     params = {"key": GEMINI_API_KEY}
 
     try:
@@ -44,11 +39,8 @@ def get_gemini_response(prompt):
         if response.status_code == 200:
             data = response.json()
             if "candidates" in data and len(data["candidates"]) > 0:
-                candidate = data["candidates"][0]
-                if "content" in candidate and "parts" in candidate["content"]:
-                    text = "".join(part["text"] for part in candidate["content"]["parts"])
-                    return text.strip()
-            return "Maaf, tidak ada respons yang valid dari API Gemini."
+                return data["candidates"][0].get("output", "Tidak ada respons valid.")
+            return "Maaf, tidak ada respons dari API Gemini."
         else:
             return f"Error Gemini: {response.text}"
     except Exception as e:
@@ -56,7 +48,7 @@ def get_gemini_response(prompt):
 
 
 # ==========================
-# **EVENT: ON_READY**
+# **EVENTS**
 # ==========================
 @bot.event
 async def on_ready():
@@ -64,14 +56,8 @@ async def on_ready():
     await bot.change_presence(activity=discord.Game(name="Gemini AI & Mini Games"))
 
 
-# ==========================
-# **EVENT: ON_MESSAGE**
-# ==========================
 @bot.event
 async def on_message(message):
-    """
-    Event ini dipicu saat bot menerima pesan di channel teks.
-    """
     if message.author == bot.user:
         return
 
@@ -88,23 +74,17 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-# ==========================
-# **EVENT: VOICE STATE UPDATE**
-# ==========================
 @bot.event
 async def on_voice_state_update(member, before, after):
     """
     Mute otomatis jika pengguna masuk ke channel tertentu.
     """
-    before_channel = before.channel.name if before.channel else None
-    after_channel = after.channel.name if after.channel else None
-
-    # Mute pengguna di channel khusus
     if after.channel and after.channel.name in MUTE_CHANNELS:
         if not member.bot:
             await member.edit(mute=True)
     elif before.channel and before.channel.name in MUTE_CHANNELS:
-        await member.edit(mute=False)
+        if not member.bot:
+            await member.edit(mute=False)
 
 
 # ==========================
@@ -154,9 +134,6 @@ async def flip(ctx):
     await ctx.send(f"Hasil lemparan: {random.choice(['Kepala', 'Ekor'])}")
 
 
-# ==========================
-# **KATEGORI: MINI GAMES**
-# ==========================
 @bot.command(name="guess")
 async def guess(ctx):
     """
@@ -180,7 +157,7 @@ async def guess(ctx):
             await ctx.send(f"Angka saya lebih kecil dari {guess_number}. Coba lagi!")
     except asyncio.TimeoutError:
         await ctx.send(f"Waktu habis! Angka saya adalah {number}.")
-    
+
 
 @bot.command(name="mathquiz")
 async def mathquiz(ctx):
@@ -262,4 +239,7 @@ async def unmuteall(ctx):
 
 
 # Menjalankan bot
-bot.run(DISCORD_TOKEN)
+if DISCORD_TOKEN:
+    bot.run(DISCORD_TOKEN)
+else:
+    print("Error: Discord Token tidak ditemukan!")
