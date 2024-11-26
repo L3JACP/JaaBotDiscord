@@ -262,4 +262,4 @@ async def unmuteall(ctx):
 
 
 # Menjalankan bot
-bot.run(Discord_Bot)
+bot.run(DISCORD_TOKEN)
