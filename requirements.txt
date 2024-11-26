@@ -1,4 +1,7 @@
-discord.py
+discord
+commands
 requests
-Flask
-
+random
+asyncio
+json
+flask
