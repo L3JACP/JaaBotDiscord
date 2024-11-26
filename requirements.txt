@@ -1,7 +1,3 @@
-discord
-commands
+discord.py
 requests
-random
-asyncio
-json
 Flask
