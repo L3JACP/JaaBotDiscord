@@ -53,7 +53,7 @@ def get_gemini_response(prompt):
 @bot.event
 async def on_ready():
     print(f'{bot.user} sudah online!')
-    await bot.change_presence(activity=discord.Game(name="Gemini AI & Mini Games"))
+    await bot.change_presence(activity=discord.Game(name="Jaa.gg | ?help"))
 
 
 @bot.event
