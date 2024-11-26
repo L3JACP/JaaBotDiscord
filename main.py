@@ -7,7 +7,7 @@ import json
 
 
 # Token Bot Discord
-DISCORD_TOKEN = "MTMwMjY1MzAwNzU2NTAyOTQyNw.G8rrGI.UZGshexVTYakCXMxheUPp8qdEeiYWn5dH78eeI"
+
 
 # Replace with your actual bot token
 
@@ -262,4 +262,4 @@ async def unmuteall(ctx):
 
 
 # Menjalankan bot
-bot.run(DISCORD_TOKEN)
+bot.run(Discord_Bot)
