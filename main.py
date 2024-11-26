@@ -4,7 +4,6 @@ import requests
 import random
 import asyncio
 import json
-from keep_alive import keep_alive
 
 intents = discord.Intents.default()
 
