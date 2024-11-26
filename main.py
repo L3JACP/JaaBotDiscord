@@ -7,7 +7,7 @@ import json
 
 
 # Token Bot Discord
-DISCORD_TOKEN = "MTMwMjY1MzAwNzU2NTAyOTQyNw.Gb2OKg.QUKjWGEfvn_Q0Vy5H280IWp_dQcZo9MvXGzy9c"
+DISCORD_TOKEN = "MTMwMjY1MzAwNzU2NTAyOTQyNw.G8rrGI.UZGshexVTYakCXMxheUPp8qdEeiYWn5dH78eeI"
 
 # Replace with your actual bot token
 
