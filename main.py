@@ -5,7 +5,6 @@ import random
 import asyncio
 import json
 
-intents = discord.Intents.default()
 
 # Token Bot Discord
 DISCORD_TOKEN = "MTMwMjY1MzAwNzU2NTAyOTQyNw.Gb2OKg.QUKjWGEfvn_Q0Vy5H280IWp_dQcZo9MvXGzy9c"
