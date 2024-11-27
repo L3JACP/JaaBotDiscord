@@ -1,6 +1,7 @@
 import discord
 import os
 import requests
+import json
 from discord.ext import commands
 
 # Token dan API
@@ -11,7 +12,25 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini
 # Inisialisasi bot
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix=["!", "/"], intents=intents)
+
+# Nama file untuk menyimpan data ekonomi pengguna
+DATA_FILE = "game_data.json"
+
+# Memuat atau membuat file data
+if not os.path.exists(DATA_FILE):
+    with open(DATA_FILE, "w") as f:
+        json.dump({}, f)
+
+def load_data():
+    """Memuat data dari file JSON."""
+    with open(DATA_FILE, "r") as f:
+        return json.load(f)
+
+def save_data(data):
+    """Menyimpan data ke file JSON."""
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f, indent=4)
 
 def get_gemini_response(prompt):
     """
@@ -25,32 +44,19 @@ def get_gemini_response(prompt):
     headers = {"Content-Type": "application/json"}
     params = {"key": GEMINI_API_KEY}
 
-    print(f"Mengirim payload ke API Gemini: {payload}")
     response = requests.post(GEMINI_API_URL, headers=headers, json=payload, params=params)
-
-    print(f"Status code dari respons API Gemini: {response.status_code}")
-    print(f"Respons dari API Gemini: {response.text}")
 
     if response.status_code == 200:
         try:
             data = response.json()
-            # Ambil teks dari respons
             candidates = data.get("candidates", [])
             if not candidates:
-                print("Respons tidak memiliki 'candidates'.")
                 return "Maaf, saya tidak bisa menjawab itu sekarang."
-
             text = candidates[0]["content"]["parts"][0]["text"]
-            if not text:
-                print("Teks dalam respons kosong.")
-                return "Maaf, respons dari API kosong."
-
             return text.strip()
-        except (KeyError, IndexError, ValueError) as e:
-            print(f"Kesalahan parsing JSON: {e}")
+        except (KeyError, IndexError, ValueError):
             return "Maaf, saya tidak bisa menjawab itu sekarang."
     else:
-        print(f"Error dari API Gemini: {response.text}")
         return "Maaf, saya tidak bisa menjawab itu sekarang."
 
 @bot.event
@@ -59,7 +65,7 @@ async def on_ready():
     Event ketika bot berhasil login.
     """
     print(f"{bot.user} sudah online!")
-    await bot.change_presence(activity=discord.Game(name="Jaa.gg | ?help"))
+    await bot.change_presence(activity=discord.Game(name="Jaa.gg | /help/!help"))
 
 @bot.event
 async def on_message(message):
@@ -69,17 +75,113 @@ async def on_message(message):
     if message.author == bot.user:
         return
 
-    print(f"Pesan yang diterima dari user: {message.content}")
-    
-    # Kirim prompt ke API Gemini
-    response = get_gemini_response(message.content)
-    print(f"Respons yang dikirimkan ke user: {response}")
+    # Batasi interaksi berdasarkan channel
+    if message.channel.name == "⚙》commands-talk":
+        # Hanya untuk fitur Gemini
+        response = get_gemini_response(message.content)
+        if response:
+            try:
+                await message.reply(response)
+            except discord.errors.HTTPException as e:
+                print(f"Error saat mengirim balasan: {e}")
+                await message.reply("Maaf, saya tidak bisa menjawab itu sekarang.")
+        else:
+            await message.reply("Maaf, saya tidak bisa menjawab itu sekarang.")
 
-    # Balas pesan user
-    if response:
-        await message.reply(response, mention_author=True)
+    elif message.channel.name == "⚙》commands-game":
+        # Hanya untuk fitur ekonomi
+        await bot.process_commands(message)
+
+    # Abaikan pesan dari channel lain
     else:
-        await message.reply("Maaf, saya tidak bisa menjawab itu sekarang.", mention_author=True)
+        return
+
+# Command: Lihat saldo
+@bot.command()
+async def saldo(ctx):
+    user_id = str(ctx.author.id)
+    if ctx.channel.name != "⚙》commands-game":
+        await ctx.send("Perintah ini hanya dapat digunakan di channel ⚙》commands-game.")
+        return
+
+    data = load_data()
+    if user_id not in data:
+        data[user_id] = {"cash": 0, "bank": 0}
+        save_data(data)
+
+    user_data = data[user_id]
+    await ctx.send(f"Saldo Anda:\n💵 Uang Tunai: ${user_data['cash']}\n🏦 ATM: ${user_data['bank']}")
+
+# Command: Kerja
+@bot.command()
+async def kerja(ctx):
+    user_id = str(ctx.author.id)
+    if ctx.channel.name != "⚙》commands-game":
+        await ctx.send("Perintah ini hanya dapat digunakan di channel ⚙》commands-game.")
+        return
+
+    data = load_data()
+    if user_id not in data:
+        data[user_id] = {"cash": 0, "bank": 0}
+
+    import random
+    gaji = random.randint(50, 200)
+    data[user_id]["cash"] += gaji
+    save_data(data)
+
+    await ctx.send(f"Kerja selesai! Anda mendapatkan ${gaji} 💵.\nSaldo tunai Anda sekarang: ${data[user_id]['cash']}")
+
+# Command: Simpan uang ke ATM
+@bot.command()
+async def atm(ctx, jumlah: int = None):
+    user_id = str(ctx.author.id)
+    if ctx.channel.name != "⚙》commands-game":
+        await ctx.send("Perintah ini hanya dapat digunakan di channel ⚙》commands-game.")
+        return
+
+    data = load_data()
+    if user_id not in data:
+        data[user_id] = {"cash": 0, "bank": 0}
+
+    user_data = data[user_id]
+
+    if jumlah is None:
+        await ctx.send(f"Saldo ATM Anda: ${user_data['bank']}\nGunakan `!atm <jumlah>` untuk menyetor uang ke ATM.")
+        return
+
+    if jumlah <= 0 or jumlah > user_data["cash"]:
+        await ctx.send("Jumlah tidak valid atau saldo tunai tidak cukup.")
+        return
+
+    user_data["cash"] -= jumlah
+    user_data["bank"] += jumlah
+    save_data(data)
+
+    await ctx.send(f"Berhasil menyetor ${jumlah} ke ATM. Saldo ATM Anda sekarang: ${user_data['bank']}")
+
+# Command: Ambil uang dari ATM
+@bot.command()
+async def ambil(ctx, jumlah: int):
+    user_id = str(ctx.author.id)
+    if ctx.channel.name != "⚙》commands-game":
+        await ctx.send("Perintah ini hanya dapat digunakan di channel ⚙》commands-game.")
+        return
+
+    data = load_data()
+    if user_id not in data:
+        data[user_id] = {"cash": 0, "bank": 0}
+
+    user_data = data[user_id]
+
+    if jumlah <= 0 or jumlah > user_data["bank"]:
+        await ctx.send("Jumlah tidak valid atau saldo ATM tidak cukup.")
+        return
+
+    user_data["bank"] -= jumlah
+    user_data["cash"] += jumlah
+    save_data(data)
+
+    await ctx.send(f"Berhasil menarik ${jumlah} dari ATM. Saldo tunai Anda sekarang: ${user_data['cash']}")
 
 # Jalankan bot
 bot.run(DISCORD_TOKEN)
