@@ -2,7 +2,10 @@ import discord
 import os
 import requests
 import json
+import random
 from discord.ext import commands
+from discord import Embed
+from datetime import datetime, timedelta
 
 # Token dan API
 DISCORD_TOKEN = os.getenv('Discord_Bot')
@@ -36,11 +39,7 @@ def get_gemini_response(prompt):
     """
     Mengirim prompt ke API Gemini dan mendapatkan respons.
     """
-    payload = {
-        "contents": [
-            {"parts": [{"text": prompt}]}
-        ]
-    }
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
     headers = {"Content-Type": "application/json"}
     params = {"key": GEMINI_API_KEY}
 
@@ -61,42 +60,33 @@ def get_gemini_response(prompt):
 
 @bot.event
 async def on_ready():
-    """
-    Event ketika bot berhasil login.
-    """
+    """Event ketika bot berhasil login."""
     print(f"{bot.user} sudah online!")
-    await bot.change_presence(activity=discord.Game(name="Jaa.gg | /help/!help"))
+    await bot.change_presence(activity=discord.Game(name="Kehidupan Virtual | /help atau !help"))
 
 @bot.event
 async def on_message(message):
-    """
-    Event ketika bot menerima pesan.
-    """
+    """Event ketika bot menerima pesan."""
     if message.author == bot.user:
         return
 
-    # Batasi interaksi berdasarkan channel
+    # Fitur Gemini di channel commands-talk
     if message.channel.name == "⚙》commands-talk":
-        # Hanya untuk fitur Gemini
         response = get_gemini_response(message.content)
         if response:
-            try:
-                await message.reply(response)
-            except discord.errors.HTTPException as e:
-                print(f"Error saat mengirim balasan: {e}")
-                await message.reply("Maaf, saya tidak bisa menjawab itu sekarang.")
+            await message.reply(response)
         else:
             await message.reply("Maaf, saya tidak bisa menjawab itu sekarang.")
 
+    # Fitur ekonomi di channel commands-game
     elif message.channel.name == "⚙》commands-game":
-        # Hanya untuk fitur ekonomi
         await bot.process_commands(message)
 
     # Abaikan pesan dari channel lain
     else:
         return
 
-# Command: Lihat saldo
+# Command: Saldo
 @bot.command()
 async def saldo(ctx):
     user_id = str(ctx.author.id)
@@ -106,11 +96,15 @@ async def saldo(ctx):
 
     data = load_data()
     if user_id not in data:
-        data[user_id] = {"cash": 0, "bank": 0}
+        data[user_id] = {"cash": 0, "bank": 0, "energy": 100, "last_work": None}
         save_data(data)
 
     user_data = data[user_id]
-    await ctx.send(f"Saldo Anda:\n💵 Uang Tunai: ${user_data['cash']}\n🏦 ATM: ${user_data['bank']}")
+    embed = Embed(title=f"Saldo {ctx.author.name}", color=0x00FF00)
+    embed.add_field(name="💵 Uang Tunai", value=f"${user_data['cash']}", inline=False)
+    embed.add_field(name="🏦 ATM", value=f"${user_data['bank']}", inline=False)
+    embed.add_field(name="⚡ Energi", value=f"{user_data['energy']}/100", inline=False)
+    await ctx.send(embed=embed)
 
 # Command: Kerja
 @bot.command()
@@ -122,18 +116,36 @@ async def kerja(ctx):
 
     data = load_data()
     if user_id not in data:
-        data[user_id] = {"cash": 0, "bank": 0}
+        data[user_id] = {"cash": 0, "bank": 0, "energy": 100, "last_work": None}
+        save_data(data)
 
-    import random
+    user_data = data[user_id]
+    now = datetime.now()
+
+    if user_data["last_work"] and now - datetime.fromisoformat(user_data["last_work"]) < timedelta(minutes=5):
+        remaining = timedelta(minutes=5) - (now - datetime.fromisoformat(user_data["last_work"]))
+        minutes, seconds = divmod(remaining.total_seconds(), 60)
+        await ctx.send(f"Anda masih lelah. Tunggu {int(minutes)} menit {int(seconds)} detik sebelum bekerja lagi.")
+        return
+
+    if user_data["energy"] < 10:
+        await ctx.send("Energi Anda tidak cukup untuk bekerja. Istirahat atau makan untuk memulihkan energi.")
+        return
+
     gaji = random.randint(50, 200)
-    data[user_id]["cash"] += gaji
+    user_data["cash"] += gaji
+    user_data["energy"] -= 10
+    user_data["last_work"] = now.isoformat()
     save_data(data)
 
-    await ctx.send(f"Kerja selesai! Anda mendapatkan ${gaji} 💵.\nSaldo tunai Anda sekarang: ${data[user_id]['cash']}")
+    embed = Embed(title="Kerja Selesai!", description=f"Anda mendapatkan ${gaji} 💵.", color=0x00FF00)
+    embed.add_field(name="Saldo Tunai", value=f"${user_data['cash']}", inline=True)
+    embed.add_field(name="Energi Tersisa", value=f"{user_data['energy']}/100", inline=True)
+    await ctx.send(embed=embed)
 
-# Command: Simpan uang ke ATM
+# Command: Istirahat
 @bot.command()
-async def atm(ctx, jumlah: int = None):
+async def istirahat(ctx):
     user_id = str(ctx.author.id)
     if ctx.channel.name != "⚙》commands-game":
         await ctx.send("Perintah ini hanya dapat digunakan di channel ⚙》commands-game.")
@@ -141,47 +153,21 @@ async def atm(ctx, jumlah: int = None):
 
     data = load_data()
     if user_id not in data:
-        data[user_id] = {"cash": 0, "bank": 0}
+        data[user_id] = {"cash": 0, "bank": 0, "energy": 100, "last_work": None}
+        save_data(data)
 
     user_data = data[user_id]
 
-    if jumlah is None:
-        await ctx.send(f"Saldo ATM Anda: ${user_data['bank']}\nGunakan `!atm <jumlah>` untuk menyetor uang ke ATM.")
+    if user_data["energy"] >= 100:
+        await ctx.send("Energi Anda sudah penuh!")
         return
 
-    if jumlah <= 0 or jumlah > user_data["cash"]:
-        await ctx.send("Jumlah tidak valid atau saldo tunai tidak cukup.")
-        return
-
-    user_data["cash"] -= jumlah
-    user_data["bank"] += jumlah
+    user_data["energy"] += 20
+    if user_data["energy"] > 100:
+        user_data["energy"] = 100
     save_data(data)
 
-    await ctx.send(f"Berhasil menyetor ${jumlah} ke ATM. Saldo ATM Anda sekarang: ${user_data['bank']}")
-
-# Command: Ambil uang dari ATM
-@bot.command()
-async def ambil(ctx, jumlah: int):
-    user_id = str(ctx.author.id)
-    if ctx.channel.name != "⚙》commands-game":
-        await ctx.send("Perintah ini hanya dapat digunakan di channel ⚙》commands-game.")
-        return
-
-    data = load_data()
-    if user_id not in data:
-        data[user_id] = {"cash": 0, "bank": 0}
-
-    user_data = data[user_id]
-
-    if jumlah <= 0 or jumlah > user_data["bank"]:
-        await ctx.send("Jumlah tidak valid atau saldo ATM tidak cukup.")
-        return
-
-    user_data["bank"] -= jumlah
-    user_data["cash"] += jumlah
-    save_data(data)
-
-    await ctx.send(f"Berhasil menarik ${jumlah} dari ATM. Saldo tunai Anda sekarang: ${user_data['cash']}")
+    await ctx.send("Anda telah beristirahat dan memulihkan energi sebesar 20 poin. ⚡")
 
 # Jalankan bot
 bot.run(DISCORD_TOKEN)
