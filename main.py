@@ -62,7 +62,7 @@ def get_gemini_response(prompt):
 async def on_ready():
     """Event ketika bot berhasil login."""
     print(f"{bot.user} sudah online!")
-    await bot.change_presence(activity=discord.Game(name="Kehidupan Virtual | /help atau !help"))
+    await bot.change_presence(activity=discord.Game(name="Jaa.gg | /help atau !help"))
 
 @bot.event
 async def on_message(message):
