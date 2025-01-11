@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 # Token dan API
 DISCORD_TOKEN = os.getenv('Discord_Bot')
-GEMINI_API_KEY = "AIzaSyBE4u8hB7ib0Cmozd3d-jneWeFbz2L_gSM"
+GEMINI_API_KEY = "AIzaSyApY4HzKQwfX6mRcQYOm2ZsXn3dhQyc-WY"
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
 
 # Inisialisasi bot
